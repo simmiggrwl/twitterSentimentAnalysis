@@ -1,12 +1,8 @@
 import os
 
-import tweepy, csv, re
+import tweepy, re
 from textblob import TextBlob
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
 from flask import Blueprint, render_template, request
-
 
 second = Blueprint("second", __name__, static_folder="static", template_folder="template")
 
@@ -25,27 +21,17 @@ class SentimentAnalysis:
     def DownloadData(self, keyword, tweets):
 
         # authenticating
-        consumerKey = '//get from Tweepy'
-        consumerSecret = '//get from Tweepy'
-        accessToken = '//insert your access token here'
-        accessTokenSecret = '//Tweepy AccessToken secret here'
+        consumerKey = '2uGom8U6ePuf3ikYg5J01beML'
+        consumerSecret = 'VrLm3pcfvdxurSOO3PHO1ffgDkBKA42u3WNWcylvCHqww2Vj3E'
+        accessToken = '1597280026831261697-j7OZSr5MNAJqQw0JgRrnWVs3zMJYe8'
+        accessTokenSecret = 'StzV14YbLeREsN1ClL0ZeOJyefqOrbbZbRtlvhEbFcBBf'
         auth = tweepy.OAuthHandler(consumerKey, consumerSecret)
         auth.set_access_token(accessToken, accessTokenSecret)
         api = tweepy.API(auth, wait_on_rate_limit=True)
 
-        # input for term to be searched and how many tweets to search
-        # searchTerm = input("Enter Keyword/Tag to search about: ")
-        # NoOfTerms = int(input("Enter how many tweets to search: "))
         tweets = int(tweets)
 
-        # searching for tweets
-        self.tweets = tweepy.Cursor(api.search, q=keyword, lang="en").items(tweets)
-
-        # Open/create a file to append data to
-        csvFile = open('result.csv', 'a')
-
-        # Use csv writer
-        csvWriter = csv.writer(csvFile)
+        self.tweets = tweepy.Cursor(api.search_tweets, q=keyword, lang="en").items(tweets)
 
         # creating some variables to store info
         polarity = 0
@@ -57,13 +43,8 @@ class SentimentAnalysis:
         snegative = 0
         neutral = 0
 
-        # iterating through tweets fetched
         for tweet in self.tweets:
-            # Append to temp so that we can store in csv later. I use encode UTF-8
-            self.tweetText.append(self.cleanTweet(tweet.text).encode('utf-8'))
-            # print (tweet.text.translate(non_bmp_map))    #print tweet's text
-            analysis = TextBlob(tweet.text)
-            # print(analysis.sentiment)  # print tweet's polarity
+            analysis = TextBlob(self.cleanTweet(tweet.text))
             polarity += analysis.sentiment.polarity  # adding up polarities to find the average later
 
             if (analysis.sentiment.polarity == 0):  # adding reaction of how people are reacting to find average later
@@ -81,10 +62,6 @@ class SentimentAnalysis:
             elif (analysis.sentiment.polarity > -1 and analysis.sentiment.polarity <= -0.6):
                 snegative += 1
 
-        # Write to csv and close csv file
-        csvWriter.writerow(self.tweetText)
-        csvFile.close()
-
         # finding average of how people are reacting
         positive = self.percentage(positive, tweets)
         wpositive = self.percentage(wpositive, tweets)
@@ -97,18 +74,11 @@ class SentimentAnalysis:
         # finding average reaction
         polarity = polarity / tweets
 
-        # printing out data
-        #  print("How people are reacting on " + keyword + " by analyzing " + str(tweets) + " tweets.")
-        #  print()
-        #  print("General Report: ")
-
         if (polarity == 0):
             htmlpolarity = "Neutral"
 
-        # print("Neutral")
         elif (polarity > 0 and polarity <= 0.3):
             htmlpolarity = "Weakly Positive"
-            # print("Weakly Positive")
         elif (polarity > 0.3 and polarity <= 0.6):
             htmlpolarity = "Positive"
         elif (polarity > 0.6 and polarity <= 1):
@@ -120,8 +90,6 @@ class SentimentAnalysis:
         elif (polarity > -1 and polarity <= -0.6):
             htmlpolarity = "strongly Negative"
 
-
-        self.plotPieChart(positive, wpositive, spositive, negative, wnegative, snegative, neutral, keyword, tweets)
         print(polarity,htmlpolarity)
         return polarity,htmlpolarity,positive,wpositive, spositive,negative,wnegative, snegative,neutral,keyword,tweets
 
@@ -135,25 +103,6 @@ class SentimentAnalysis:
         return format(temp, '.2f')
 
 
-    def plotPieChart(self, positive, wpositive, spositive, negative, wnegative, snegative, neutral, keyword, tweets):
-        fig = plt.figure()
-        labels = ['Positive [' + str(positive) + '%]', 'Weakly Positive [' + str(wpositive) + '%]',
-                  'Strongly Positive [' + str(spositive) + '%]', 'Neutral [' + str(neutral) + '%]',
-                  'Negative [' + str(negative) + '%]', 'Weakly Negative [' + str(wnegative) + '%]',
-                  'Strongly Negative [' + str(snegative) + '%]']
-        sizes = [positive, wpositive, spositive, neutral, negative, wnegative, snegative]
-        colors = ['yellowgreen', 'lightgreen', 'darkgreen', 'gold', 'red', 'lightsalmon', 'darkred']
-        patches, texts = plt.pie(sizes, colors=colors, startangle=90)
-        plt.legend(patches, labels, loc="best")
-        plt.axis('equal')
-        plt.tight_layout()
-        strFile = r"C:\Users\LENOVO\PycharmProjects\SentimentAnalysis\static\images\plot1.png"
-        if os.path.isfile(strFile):
-            os.remove(strFile)  # Opt.: os.system("rm "+strFile)
-        plt.savefig(strFile)
-        plt.show()
-
-
 @second.route('/sentiment_logic', methods=['POST','GET'])
 def sentiment_logic():
     keyword = request.form.get('keyword')
@@ -163,9 +112,6 @@ def sentiment_logic():
     return render_template('sentiment_analyzer.html',polarity=polarity,htmlpolarity=htmlpolarity, positive=positive,wpositive=wpositive, spositive=spositive,
                            negative=negative,wnegative=wnegative, snegative=snegative,neutral=neutral,keyword=keyword1,tweets=tweet1)
 
-@second.route('/visualize')
-def visualize():
-    return render_template('PieChart.html')
 
 
 
